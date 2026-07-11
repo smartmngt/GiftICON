@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>기프티콘 지갑</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #0d0d0d; min-height: 100vh; color: #fff; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-8px)} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes slideLeft { from{transform:translateX(0)} to{transform:translateX(-80px)} }
+  .dot { width:7px;height:7px;border-radius:50%;background:#C9A84C;display:inline-block;animation:bounce 1s infinite; }
+
+  #api-banner { background:#1a1508;border-bottom:1px solid #2a2008;padding:10px 20px;font-size:12px;color:#C9A84C;display:flex;align-items:center;justify-content:center;gap:10px; }
+  #api-banner button { background:#C9A84C;color:#000;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer; }
+
+  #header { padding:52px 20px 20px;background:linear-gradient(180deg,#161616 0%,#0d0d0d 100%); }
+  #header .inner { max-width:480px;margin:0 auto; }
+  #header .greeting { font-size:13px;color:#666;margin-bottom:4px; }
+  #header .title { font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px; }
+  #header .subtitle { font-size:13px;color:#555;margin-top:2px; }
+
+  #summary { max-width:480px;margin:16px auto 0;padding:0 20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
+  .sum-card { background:#161616;border:1px solid #222;border-radius:14px;padding:12px 14px; }
+  .sum-card .sum-label { font-size:10px;color:#555;margin-bottom:6px;letter-spacing:0.3px; }
+  .sum-card .sum-val { font-size:20px;font-weight:800;color:#fff; }
+  .sum-card .sum-sub { font-size:10px;color:#C9A84C;margin-top:3px; }
+
+  #alert-banner { max-width:480px;margin:12px auto 0;padding:0 20px;display:none; }
+  #alert-inner { background:#1a0f00;border:1px solid #3a2200;border-radius:12px;padding:10px 14px;font-size:13px;color:#FF8C42;display:flex;align-items:center;gap:8px; }
+
+  /* Brand tabs */
+  #brand-wrap { overflow-x:auto;padding:16px 20px 0;max-width:480px;margin:0 auto; }
+  #brand-wrap::-webkit-scrollbar{display:none;}
+  #brands { display:flex;gap:8px;padding-bottom:4px; }
+  .brand-btn { padding:6px 14px;border-radius:20px;border:1px solid #2a2a2a;white-space:nowrap;font-weight:600;font-size:13px;cursor:pointer;background:transparent;color:#666;transition:all 0.15s;display:flex;align-items:center;gap:6px; }
+  .brand-btn.active { background:#C9A84C;color:#000;border-color:#C9A84C; }
+  .brand-btn img { width:18px;height:18px;border-radius:4px;object-fit:contain; }
+  .brand-count { background:rgba(255,255,255,0.15);border-radius:10px;padding:1px 6px;font-size:11px; }
+  .brand-btn.active .brand-count { background:rgba(0,0,0,0.2); }
+
+  .section-header { max-width:480px;margin:16px auto 8px;padding:0 20px;display:flex;justify-content:space-between;align-items:center; }
+  .section-title { font-size:13px;font-weight:700;color:#555;letter-spacing:0.5px;text-transform:uppercase; }
+  #toggle-used { font-size:12px;color:#444;background:none;border:none;cursor:pointer; }
+
+  #cards { max-width:480px;margin:0 auto 100px;padding:0 20px;display:flex;flex-direction:column;gap:1px; }
+
+  /* Swipe card wrapper */
+  .card-wrap { position:relative;border-radius:0; }
+  .card-wrap:first-child { border-radius:14px 14px 0 0; }
+  .card-wrap:last-child { border-radius:0 0 14px 14px; }
+  .card-wrap:first-child:last-child { border-radius:14px; }
+  .delete-btn { position:absolute;right:0;top:0;bottom:0;width:72px;background:#E63946;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:inherit; }
+  .delete-btn strong { font-size:14px;color:#fff;font-weight:800;letter-spacing:1px; }
+
+  .card { background:#111;padding:14px 0;cursor:pointer;display:flex;align-items:center;gap:14px;border-bottom:1px solid #1a1a1a;position:relative;transition:transform 0.25s ease;touch-action:pan-y;z-index:1; }
+  .card.used,.card.expired { opacity:0.35;cursor:default; }
+  .card:active:not(.used):not(.expired) { background:#161616; }
+
+  .card-icon { width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-left:14px;overflow:hidden; }
+  .card-icon img { width:100%;height:100%;object-fit:contain; }
+  .card-body { flex:1;min-width:0; }
+  .card-brand { font-weight:700;font-size:15px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .card-item { font-size:12px;color:#555;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .card-right { text-align:right;flex-shrink:0;margin-right:14px; }
+  .card-date { font-size:11px;color:#444;margin-bottom:4px; }
+  .dday { border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#000;display:inline-block; }
+  .card-status-txt { font-size:11px;color:#444;font-weight:600; }
+
+  #empty { text-align:center;padding:60px 0;color:#333;display:none; }
+  #empty .icon { font-size:40px;opacity:0.4; }
+  #empty p { margin-top:12px;font-size:14px;color:#444; }
+
+  #fab { position:fixed;bottom:28px;left:50%;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;border:none;background:#C9A84C;color:#000;font-size:28px;box-shadow:0 4px 24px rgba(201,168,76,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:50; }
+  #fab:active { transform:translateX(-50%) scale(0.9); }
+
+  .backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:flex-end;justify-content:center; }
+  .sheet { background:#161616;border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;box-shadow:0 -4px 40px rgba(0,0,0,0.6);max-height:92vh;overflow-y:auto; }
+  .handle { width:36px;height:4px;background:#333;border-radius:2px;margin:0 auto 20px; }
+  .sheet-title { font-weight:800;font-size:18px;margin-bottom:18px;color:#fff; }
+
+  /* Barcode - real style */
+  #barcode-wrap { background:#fff;border-radius:14px;padding:24px 20px 16px;margin-bottom:20px;text-align:center; }
+  #barcode-canvas { display:block;margin:0 auto; }
+  #barcode-number { font-size:16px;font-weight:700;color:#111;letter-spacing:3px;margin-top:10px;font-family:monospace; }
+
+  #view-header { display:flex;align-items:center;gap:14px;margin-bottom:20px; }
+  #view-icon { width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;overflow:hidden; }
+  #view-icon img { width:100%;height:100%;object-fit:contain; }
+  #view-brand { font-weight:800;font-size:20px;color:#fff; }
+  #view-item-text { font-size:13px;color:#666;margin-top:2px; }
+  .btn-row { display:flex;gap:10px; }
+  .btn-cancel { flex:1;padding:13px 0;border-radius:12px;border:1px solid #2a2a2a;background:transparent;font-weight:600;font-size:15px;cursor:pointer;color:#666; }
+  .btn-use { flex:2;padding:13px 0;border-radius:12px;border:none;background:#C9A84C;color:#000;font-weight:700;font-size:15px;cursor:pointer; }
+
+  .upload-zone { border:1px dashed #2a2a2a;border-radius:16px;padding:40px 20px;text-align:center;cursor:pointer;background:#111; }
+  .upload-zone .icon { font-size:40px;margin-bottom:12px;opacity:0.6; }
+  .upload-zone h3 { font-weight:700;font-size:15px;color:#aaa; }
+  .upload-zone p { font-size:12px;color:#444;margin-top:6px; }
+  .analyzing { text-align:center;padding:40px 0; }
+  #preview-img { width:100%;height:130px;object-fit:cover;border-radius:12px;margin-bottom:16px;display:none; }
+  .field { margin-bottom:14px; }
+  .field label { font-size:11px;font-weight:700;color:#555;display:block;margin-bottom:6px;letter-spacing:0.5px;text-transform:uppercase; }
+  .field input { width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2a2a2a;background:#111;font-size:15px;outline:none;font-family:inherit;color:#fff; }
+  .field input:focus { border-color:#C9A84C; }
+  .cat-pills { display:flex;gap:8px;flex-wrap:wrap; }
+  .cat-pill { padding:6px 14px;border-radius:20px;border:1px solid #2a2a2a;background:transparent;color:#555;font-weight:600;font-size:13px;cursor:pointer; }
+  .cat-pill.active { color:#000; }
+  .btn-save { width:100%;padding:14px 0;border-radius:12px;border:none;background:#C9A84C;color:#000;font-weight:700;font-size:15px;cursor:pointer;margin-top:8px; }
+  #add-error { background:#1a0a00;border:1px solid #3a1500;border-radius:8px;padding:8px 12px;font-size:13px;color:#FF8C42;margin-bottom:14px;display:none; }
+  #api-modal p { font-size:13px;color:#555;margin-bottom:16px;line-height:1.7; }
+  #api-modal a { color:#C9A84C; }
+  #api-modal .field input { font-size:12px;font-family:monospace;color:#C9A84C; }
+</style>
+</head>
+<body>
+
+<div id="api-banner">
+  <span>⚡ AI 분석을 위해 Groq 키를 입력하세요</span>
+  <button onclick="openApiModal()">키 입력</button>
+</div>
+
+<div id="header">
+  <div class="inner">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="greeting">반갑습니다.</div>
+        <div class="title">내 기프티콘 지갑</div>
+        <div class="subtitle" id="header-sub">로딩 중...</div>
+      </div>
+      <button onclick="openApiModal()" style="background:none;border:1px solid #333;border-radius:8px;color:#666;padding:6px 12px;font-size:12px;cursor:pointer;margin-top:4px">⚙️ API키</button>
+    </div>
+  </div>
+</div>
+
+<div id="summary">
+  <div class="sum-card">
+    <div class="sum-label">사용 가능</div>
+    <div class="sum-val" id="sum-active">0</div>
+    <div class="sum-sub">장</div>
+  </div>
+  <div class="sum-card">
+    <div class="sum-label">한달 내 만료</div>
+    <div class="sum-val" id="sum-month" style="color:#F4A261">0</div>
+    <div class="sum-sub">장</div>
+  </div>
+  <div class="sum-card">
+    <div class="sum-label">일주일 내 만료</div>
+    <div class="sum-val" id="sum-week" style="color:#FF8C42">0</div>
+    <div class="sum-sub">장</div>
+  </div>
+</div>
+
+<div id="alert-banner"><div id="alert-inner"></div></div>
+
+<div id="brand-wrap"><div id="brands"></div></div>
+
+<div class="section-header">
+  <span class="section-title">보유 목록</span>
+</div>
+
+<div id="cards"></div>
+<div id="empty">
+  <div class="icon">🎁</div>
+  <p>기프티콘이 없어요</p>
+</div>
+
+<button id="fab" onclick="openAddModal()">+</button>
+
+<!-- View Modal -->
+<div class="backdrop" id="view-modal" style="display:none" onclick="closeViewModal()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="handle"></div>
+    <div id="view-header">
+      <div id="view-icon"></div>
+      <div>
+        <div id="view-brand"></div>
+        <div id="view-item-text"></div>
+      </div>
+      <span id="view-dday" style="margin-left:auto"></span>
+    </div>
+    <div id="barcode-wrap">
+      <canvas id="barcode-canvas" width="280" height="90"></canvas>
+      <div id="barcode-number"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeViewModal()">닫기</button>
+      <button class="btn-use" id="btn-use-action" onclick="useCurrentItem()">사용 완료</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="backdrop" id="add-modal" style="display:none" onclick="closeAddModal()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="handle"></div>
+    <div class="sheet-title">기프티콘 추가</div>
+    <div id="add-step-upload">
+      <input type="file" id="file-input" accept="image/*" style="display:none" onchange="handleFile(this)">
+      <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="icon">📷</div>
+        <h3>사진 촬영 또는 갤러리에서 선택</h3>
+        <p>AI가 자동으로 정보를 읽어드려요</p>
+      </div>
+      <div style="text-align:center;margin-top:14px">
+        <button onclick="openManualAdd()" style="background:none;border:none;color:#444;font-size:13px;cursor:pointer;text-decoration:underline">직접 입력하기</button>
+      </div>
+    </div>
+    <div id="add-step-analyzing" style="display:none">
+      <div class="analyzing">
+        <img id="preview-img" alt="">
+        <div style="font-size:28px;margin-bottom:10px">🔍</div>
+        <div style="font-weight:700;font-size:15px;color:#aaa">분석 중...</div>
+        <div style="font-size:12px;color:#444;margin-top:6px">브랜드, 유효기간, 바코드를 읽고 있어요</div>
+        <div style="margin-top:18px;display:flex;justify-content:center;gap:6px">
+          <div class="dot" style="animation-delay:0s"></div>
+          <div class="dot" style="animation-delay:0.2s"></div>
+          <div class="dot" style="animation-delay:0.4s"></div>
+        </div>
+      </div>
+    </div>
+    <div id="add-step-result" style="display:none">
+      <div id="add-error"></div>
+      <img id="result-preview" alt="" style="width:100%;height:130px;object-fit:cover;border-radius:12px;margin-bottom:16px;display:none">
+      <div class="field"><label>브랜드</label><input id="f-brand" placeholder="예: 스타벅스"></div>
+      <div class="field"><label>상품명</label><input id="f-item" placeholder="예: 아메리카노 Tall"></div>
+      <div class="field"><label>유효기간</label><input id="f-expiry" type="date"></div>
+      <div class="field"><label>바코드</label><input id="f-barcode" placeholder="바코드 번호"></div>
+      <div class="field"><label>카테고리</label><div class="cat-pills" id="cat-pills"></div></div>
+      <button class="btn-save" onclick="saveGifticon()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- API Modal -->
+<div class="backdrop" id="api-modal" style="display:none" onclick="closeApiModal()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="handle"></div>
+    <div class="sheet-title">Groq API 키</div>
+    <p>AI 자동 분석 기능을 사용하려면 키가 필요해요.<br>
+    <a href="https://console.groq.com" target="_blank">console.groq.com</a>에서 무료로 발급받을 수 있어요.</p>
+    <div class="field"><label>API 키</label><input id="api-key-input" placeholder="gsk_..."></div>
+    <button class="btn-save" onclick="saveApiKey()">저장하기</button>
+  </div>
+</div>
+
+<script>
+const CATEGORIES = {
+  "교환권":     { emoji:"🎫", color:"#1a0a00", light:"#FF6B35" },
+  "상품권":     { emoji:"🎟️", color:"#0a1a00", light:"#4CAF50" },
+  "카페":       { emoji:"☕", color:"#4a2c0a", light:"#C9A84C" },
+  "음식":       { emoji:"🍔", color:"#2a1000", light:"#FF6B35" },
+  "편의점":     { emoji:"🏪", color:"#0a1f0a", light:"#4CAF50" },
+  "뷰티":       { emoji:"💄", color:"#1f0a1f", light:"#C77DFF" },
+  "패션":       { emoji:"👗", color:"#0a0a2a", light:"#4895EF" },
+  "식품":       { emoji:"🥗", color:"#0a1a0a", light:"#66BB6A" },
+  "주류":       { emoji:"🍺", color:"#1a1000", light:"#FFC107" },
+  "리빙":       { emoji:"🛋️", color:"#1a1a0a", light:"#A5D6A7" },
+  "레저·스포츠":{ emoji:"⚽", color:"#0a1a1a", light:"#26C6DA" },
+  "책·음반":    { emoji:"📚", color:"#1a0a1a", light:"#AB47BC" },
+  "유아동·반려":{ emoji:"🐾", color:"#1a0f00", light:"#FF8A65" },
+  "디지털·가전":{ emoji:"📱", color:"#0a0a1a", light:"#42A5F5" },
+  "기타":       { emoji:"🎁", color:"#1a1a1a", light:"#888" },
+};
+
+function getBrandLogo(brand) {
+  const domains = {
+    'BBQ':'bbq.co.kr','BHC':'bhc.co.kr','교촌':'kyochon.com',
+    '스타벅스':'starbucks.co.kr','투썸플레이스':'twosome.co.kr','투썸':'twosome.co.kr',
+    '이디야':'ediya.com','CU':'cu.bgfretail.com','GS25':'gs25.gsretail.com',
+    '세븐일레븐':'7-eleven.co.kr','올리브영':'oliveyoung.co.kr',
+    '맥도날드':'mcdonalds.co.kr','버거킹':'burgerking.co.kr','KFC':'kfckorea.com',
+    '파리바게뜨':'paris.co.kr','뚜레쥬르':'tlj.co.kr','배스킨라빈스':'baskinrobbins.co.kr',
+    '던킨':'dunkinkdonuts.co.kr','메가커피':'mega-mgccoffee.com','컴포즈':'composecoffee.com',
+  };
+  if (domains[brand]) return `https://www.google.com/s2/favicons?domain=${domains[brand]}&sz=128`;
+  return null;
+}
+
+let gifticons = JSON.parse(localStorage.getItem('gifticons') || '[]');
+let selectedBrand = "전체";
+let showUsed = false;
+let currentViewId = null;
+let selectedAddCat = "기타";
+let currentPreviewUrl = null;
+
+if (gifticons.length === 0) {
+  gifticons = [
+    { id:1, brand:"스타벅스", item:"아메리카노 Tall", category:"카페", expiry:"2025-08-15", barcode:"8801234567890", used:false },
+    { id:2, brand:"올리브영", item:"3만원 금액권", category:"뷰티", expiry:"2025-07-05", barcode:"8809876543210", used:false },
+    { id:3, brand:"CU", item:"1만원 금액권", category:"편의점", expiry:"2026-12-31", barcode:"8801111222333", used:false },
+  ];
+  saveData();
+}
+
+function saveData() { localStorage.setItem('gifticons', JSON.stringify(gifticons)); }
+
+function getDday(expiry) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  return Math.ceil((new Date(expiry) - today) / 86400000);
+}
+
+function ddayHTML(expiry) {
+  const d = getDday(expiry);
+  if (d < 0)   return `<span class="dday" style="background:#333;color:#666">만료</span>`;
+  if (d === 0)  return `<span class="dday" style="background:#E63946">오늘!</span>`;
+  if (d <= 7)   return `<span class="dday" style="background:#FF8C42">D-${d}</span>`;
+  if (d <= 30)  return `<span class="dday" style="background:#F4A261">D-${d}</span>`;
+  return `<span class="dday" style="background:#2a2a2a;color:#666">D-${d}</span>`;
+}
+
+function iconHTML(brand, cat, size=42) {
+  const logo = getBrandLogo(brand);
+  if (logo) return `<img src="${logo}" onerror="this.parentNode.innerHTML='${cat.emoji}'" style="width:${size}px;height:${size}px;object-fit:contain;border-radius:${size*0.28}px">`;
+  return cat.emoji;
+}
+
+function render() {
+  const active = gifticons.filter(g => !g.used && getDday(g.expiry) >= 0);
+  const week = active.filter(g => getDday(g.expiry) <= 7);
+  const month = active.filter(g => getDday(g.expiry) <= 30);
+
+  // Header
+  document.getElementById('header-sub').textContent = `사용 가능 ${active.length}장`;
+  document.getElementById('sum-active').textContent = active.length;
+  document.getElementById('sum-week').textContent = week.length;
+  document.getElementById('sum-month').textContent = month.length;
+
+  // Alert
+  const alertBanner = document.getElementById('alert-banner');
+  if (week.length > 0) {
+    alertBanner.style.display = 'block';
+    document.getElementById('alert-inner').innerHTML = `⚠️ <strong>${week.length}장</strong>이 7일 안에 만료돼요!`;
+  } else {
+    alertBanner.style.display = 'none';
+  }
+
+  document.getElementById('api-banner').style.display = getApiKey() ? 'none' : 'flex';
+
+  // Brand tabs
+  const brandCounts = {};
+  gifticons.filter(g => !g.used && getDday(g.expiry) >= 0).forEach(g => {
+    brandCounts[g.brand] = (brandCounts[g.brand] || 0) + 1;
+  });
+  const expiredCount = gifticons.filter(g => g.used || getDday(g.expiry) < 0).length;
+  const brandsEl = document.getElementById('brands');
+  const allBrands = Object.keys(brandCounts);
+  brandsEl.innerHTML = [
+    `<button class="brand-btn${selectedBrand==='전체'?' active':''}" onclick="selectBrand('전체')">전체 <span class="brand-count">${active.length}</span></button>`,
+    ...allBrands.map(b => {
+      const logo = getBrandLogo(b);
+      const logoHtml = logo ? `<img src="${logo}" style="width:16px;height:16px;object-fit:contain;border-radius:3px;image-rendering:crisp-edges">` : '';
+      return `<button class="brand-btn${selectedBrand===b?' active':''}" onclick="selectBrand('${b}')">${logoHtml}${b} <span class="brand-count">${brandCounts[b]}</span></button>`;
+    }),
+    expiredCount > 0 ? `<button class="brand-btn${selectedBrand==='만료됨'?' active':''}" onclick="selectBrand('만료됨')" style="${selectedBrand==='만료됨'?'background:#444;border-color:#444;color:#fff':''}">만료됨 <span class="brand-count">${expiredCount}</span></button>` : ''
+  ].join('');
+
+  // Cards
+  const filtered = gifticons.filter(g => {
+    if (selectedBrand === '만료됨') {
+      return g.used || getDday(g.expiry) < 0;
+    }
+    if (g.used || getDday(g.expiry) < 0) return false;
+    if (selectedBrand !== '전체' && g.brand !== selectedBrand) return false;
+    return true;
+  });
+
+  const cardsEl = document.getElementById('cards');
+  const emptyEl = document.getElementById('empty');
+
+  if (filtered.length === 0) {
+    cardsEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+  } else {
+    emptyEl.style.display = 'none';
+    cardsEl.innerHTML = filtered.map((g, idx) => {
+      const cat = CATEGORIES[g.category] || CATEGORIES["기타"];
+      const expired = getDday(g.expiry) < 0;
+      const inactive = g.used || expired;
+      const isFirst = idx === 0;
+      const isLast = idx === filtered.length - 1;
+      const radiusStyle = isFirst && isLast ? 'border-radius:14px' : isFirst ? 'border-radius:14px 14px 0 0' : isLast ? 'border-radius:0 0 14px 14px' : '';
+      const d = new Date(g.expiry);
+      const dateStr = `'${String(d.getFullYear()).slice(2)}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+      const canSwipe = true; // 모든 카드 삭제 가능
+      return `
+        <div class="card-wrap" style="${radiusStyle}">
+          <div class="card" id="card-${g.id}"
+            ${!inactive ? `onclick="handleCardClick(event,${g.id})"` : ''}
+            ontouchstart="touchStart(event,${g.id})" ontouchend="touchEnd(event,${g.id})"
+            style="transform:translateX(0);${inactive?'opacity:0.4':''}">
+            <div class="card-icon" style="background:${cat.color}">${iconHTML(g.brand, cat)}</div>
+            <div class="card-body">
+              <div class="card-brand">${g.brand}</div>
+              <div class="card-item">${g.item}</div>
+            </div>
+            <div class="card-right">
+              <div class="card-date">~${dateStr}</div>
+              ${inactive ? `<span class="card-status-txt" style="color:#555">${g.used?'사용완료':'만료'}</span>` : ddayHTML(g.expiry)}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+}
+
+function selectBrand(b) {
+  if (swipedCardId) {
+    const prev = document.getElementById(`card-${swipedCardId}`);
+    if (prev) prev.style.transform = 'translateX(0)';
+    hideDeleteBtn(swipedCardId);
+    swipedCardId = null;
+  }
+  selectedBrand = b;
+  render();
+}
+// Swipe to delete
+let touchStartX = 0;
+let touchStartY = 0;
+let isSwiping = false;
+let swipedCardId = null;
+
+function touchStart(e, id) {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  isSwiping = false;
+}
+
+function showDeleteBtn(id) {
+  const wrap = document.getElementById(`card-${id}`)?.parentNode;
+  if (!wrap) return;
+  if (wrap.querySelector('.delete-btn')) return;
+  const btn = document.createElement('div');
+  btn.className = 'delete-btn';
+  btn.innerHTML = '<strong>삭제</strong>';
+  btn.onclick = () => deleteItem(id);
+  wrap.appendChild(btn);
+}
+
+function hideDeleteBtn(id) {
+  const wrap = document.getElementById(`card-${id}`)?.parentNode;
+  if (!wrap) return;
+  const btn = wrap.querySelector('.delete-btn');
+  if (btn) btn.remove();
+}
+
+function touchEnd(e, id) {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dy) > Math.abs(dx)) return;
+  if (Math.abs(dx) < 30) return;
+  isSwiping = true;
+  const card = document.getElementById(`card-${id}`);
+  if (!card) return;
+
+  if (dx < -30) {
+    // 이전 열린 카드 닫기
+    if (swipedCardId && swipedCardId !== id) {
+      const prev = document.getElementById(`card-${swipedCardId}`);
+      if (prev) prev.style.transform = 'translateX(0)';
+      hideDeleteBtn(swipedCardId);
+    }
+    card.style.transform = 'translateX(-72px)';
+    showDeleteBtn(id);
+    swipedCardId = id;
+  } else if (dx > 30) {
+    card.style.transform = 'translateX(0)';
+    hideDeleteBtn(id);
+    if (swipedCardId === id) swipedCardId = null;
+  }
+}
+
+function handleCardClick(e, id) {
+  if (isSwiping) { isSwiping = false; return; }
+  if (swipedCardId) {
+    const prev = document.getElementById(`card-${swipedCardId}`);
+    if (prev) prev.style.transform = 'translateX(0)';
+    hideDeleteBtn(swipedCardId);
+    swipedCardId = null;
+    return;
+  }
+  openViewModal(id);
+}
+
+function deleteItem(id) {
+  gifticons = gifticons.filter(g => g.id !== id);
+  saveData(); render();
+}
+
+// View Modal
+function openViewModal(id) {
+  const g = gifticons.find(x => x.id === id);
+  if (!g) return;
+  currentViewId = id;
+  const cat = CATEGORIES[g.category] || CATEGORIES["기타"];
+  const logo = getBrandLogo(g.brand);
+  const iconEl = document.getElementById('view-icon');
+  iconEl.style.background = cat.color;
+  if (logo) {
+    iconEl.innerHTML = `<img src="${logo}" onerror="this.parentNode.innerHTML='${cat.emoji}'" style="width:52px;height:52px;object-fit:contain;border-radius:14px">`;
+  } else {
+    iconEl.innerHTML = `<span style="font-size:26px">${cat.emoji}</span>`;
+  }
+  document.getElementById('view-brand').innerHTML = `<div style="font-weight:800;font-size:20px;color:#fff">${g.brand}</div>`;
+  document.getElementById('view-item-text').innerHTML = `<div style="font-size:13px;color:#555;margin-top:2px">${g.item}</div>`;
+  document.getElementById('view-dday').innerHTML = ddayHTML(g.expiry);
+  drawBarcode(g.barcode);
+  document.getElementById('view-modal').style.display = 'flex';
+}
+function closeViewModal() { document.getElementById('view-modal').style.display = 'none'; }
+function useCurrentItem() {
+  gifticons = gifticons.map(g => g.id === currentViewId ? {...g, used:true} : g);
+  saveData();
+  selectedBrand = '만료됨';
+  render();
+  closeViewModal();
+}
+
+function drawBarcode(code) {
+  const canvas = document.getElementById('barcode-canvas');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+
+  // EAN-13 스타일 바코드 패턴 생성
+  // 숫자마다 고정된 패턴으로 실제 바코드처럼 보이게
+  const patterns = {
+    '0':'3211','1':'2221','2':'2122','3':'1411','4':'1132',
+    '5':'1231','6':'1114','7':'1312','8':'1213','9':'3112'
+  };
+  const digits = code.replace(/\D/g,'').padEnd(13,'0').slice(0,13);
+  
+  let bars = [111]; // 시작 가드
+  for (let i = 0; i < digits.length; i++) {
+    const p = patterns[digits[i]] || '2221';
+    p.split('').forEach(n => bars.push(parseInt(n)));
+    if (i === 5) bars.push(11111); // 중간 가드
+  }
+  bars.push(111); // 끝 가드
+
+  const totalUnits = bars.reduce((a,b) => a + (b > 9 ? b%10*2 : b), 0);
+  const unitW = (w - 20) / totalUnits;
+  let x = 10;
+
+  bars.forEach((b, i) => {
+    const units = b > 9 ? b % 10 * 2 : b;
+    const isBar = i % 2 === 0;
+    ctx.fillStyle = isBar ? '#000' : '#fff';
+    ctx.fillRect(x, 0, unitW * units, h - 14);
+    x += unitW * units;
+  });
+
+  // 번호 포맷: 4자리씩
+  const fmt = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+  const el = document.getElementById('barcode-number');
+  el.textContent = fmt;
+}
+
+// Add Modal
+function openAddModal() {
+  document.getElementById('add-modal').style.display = 'flex';
+  showStep('upload');
+  document.getElementById('file-input').value = '';
+  currentPreviewUrl = null;
+}
+function closeAddModal() { document.getElementById('add-modal').style.display = 'none'; }
+function showStep(step) {
+  ['upload','analyzing','result'].forEach(s =>
+    document.getElementById(`add-step-${s}`).style.display = s===step?'block':'none'
+  );
+}
+function openManualAdd() {
+  ['f-brand','f-item','f-barcode'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-expiry').value = '';
+  document.getElementById('add-error').style.display = 'none';
+  document.getElementById('result-preview').style.display = 'none';
+  selectedAddCat = '기타';
+  renderCatPills();
+  showStep('result');
+}
+function renderCatPills() {
+  document.getElementById('cat-pills').innerHTML = Object.entries(CATEGORIES).map(([k,v]) =>
+    `<button class="cat-pill${selectedAddCat===k?' active':''}" style="${selectedAddCat===k?`background:${v.light};border-color:${v.light}`:'border-color:#2a2a2a'}" onclick="selectAddCat('${k}')">${v.emoji} ${k}</button>`
+  ).join('');
+}
+function selectAddCat(c) { selectedAddCat = c; renderCatPills(); }
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  currentPreviewUrl = URL.createObjectURL(file);
+  document.getElementById('preview-img').src = currentPreviewUrl;
+  document.getElementById('preview-img').style.display = 'block';
+  showStep('analyzing');
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    setTimeout(() => { fallbackManual(); }, 600);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result.split(',')[1];
+    const mediaType = file.type || 'image/jpeg';
+    try {
+      const res = await fetch(`https://api.groq.com/openai/v1/chat/completions`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},
+        body:JSON.stringify({
+          model:'meta-llama/llama-4-scout-17b-16e-instruct',
+          max_tokens:300,
+          temperature:0,
+          messages:[{role:'user',content:[
+            {type:'image_url',image_url:{url:`data:${mediaType};base64,${base64}`}},
+            {type:'text',text:`이 이미지는 한국 기프티콘(모바일 상품권)입니다.
+이미지에서 텍스트를 정확히 읽어서 아래 JSON으로만 응답하세요. 마크다운 없이 JSON만.
+
+규칙:
+- brand: 브랜드명 (BBQ, BHC, 스타벅스, CU 등 공식 브랜드명 그대로)
+- item: 이미지에 보이는 상품명을 정확히 읽되, 흔한 치킨 메뉴명(뿌링클, 맛초킹, 후라이드, 양념치킨, 황금올리브, 과산화킹→괴산왕이 아닌 뿌링클 등)은 올바른 브랜드 공식 메뉴명으로 교정
+- category: 교환권/상품권/카페/음식/편의점/뷰티/패션/식품/주류/리빙/레저·스포츠/책·음반/유아동·반려/디지털·가전/기타 중 하나
+- expiry: YYYY-MM-DD 형식 유효기간 (없으면 null)
+- barcode: 이미지에 보이는 바코드 숫자만, 공백 없이 (없으면 임의 13자리)
+
+{"brand":"","item":"","category":"","expiry":"","barcode":""}`}
+          ]}]
+        })
+      });
+      const data = await res.json();
+      const text = data.choices[0].message.content;
+      const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+      document.getElementById('f-brand').value = parsed.brand || '';
+      document.getElementById('f-item').value = parsed.item || '';
+      document.getElementById('f-expiry').value = parsed.expiry || '';
+      document.getElementById('f-barcode').value = parsed.barcode || rand13();
+      selectedAddCat = parsed.category || '기타';
+      document.getElementById('result-preview').src = currentPreviewUrl;
+      document.getElementById('result-preview').style.display = 'block';
+      document.getElementById('add-error').style.display = 'none';
+    } catch(err) {
+      showError('분석에 실패했어요. 직접 입력해주세요.');
+      document.getElementById('result-preview').src = currentPreviewUrl;
+      document.getElementById('result-preview').style.display = 'block';
+    }
+    renderCatPills(); showStep('result');
+  };
+  reader.readAsDataURL(file);
+}
+
+function fallbackManual() {
+  showError('API 키가 없어서 수동으로 입력해주세요.');
+  document.getElementById('result-preview').src = currentPreviewUrl;
+  document.getElementById('result-preview').style.display = 'block';
+  ['f-brand','f-item','f-barcode'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-expiry').value = '';
+  selectedAddCat = '기타';
+  renderCatPills(); showStep('result');
+}
+function showError(msg) {
+  const el = document.getElementById('add-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+function rand13() { return String(Math.floor(Math.random()*9e12+1e12)); }
+
+function saveGifticon() {
+  const brand = document.getElementById('f-brand').value.trim();
+  if (!brand) { alert('브랜드명을 입력해주세요'); return; }
+  const barcode = document.getElementById('f-barcode').value || rand13();
+
+  // 중복 체크
+  const dup = gifticons.find(g => g.barcode === barcode && !g.used);
+  if (dup) {
+    if (!confirm(`이미 등록된 기프티콘이에요!\n(${dup.brand} - ${dup.item})\n그래도 추가할까요?`)) {
+      closeAddModal(); // 취소하면 첫화면으로
+      return;
+    }
+  }
+
+  gifticons.unshift({
+    id: Date.now(), brand,
+    item: document.getElementById('f-item').value.trim() || '상품권',
+    category: selectedAddCat,
+    expiry: document.getElementById('f-expiry').value || '2099-12-31',
+    barcode,
+    used: false,
+  });
+  saveData(); render(); closeAddModal();
+}
+
+function getApiKey() { return localStorage.getItem('groq_api_key') || ''; }
+function openApiModal() {
+  document.getElementById('api-key-input').value = getApiKey();
+  document.getElementById('api-modal').style.display = 'flex';
+}
+function closeApiModal() { document.getElementById('api-modal').style.display = 'none'; }
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (key) localStorage.setItem('groq_api_key', key);
+  closeApiModal(); render();
+}
+
+render();
+</script>
+</body>
+</html>
