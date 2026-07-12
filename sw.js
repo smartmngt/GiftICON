@@ -1,4 +1,4 @@
-const CACHE = 'gifticon-v3';
+const CACHE = 'gifticon-v4';
 const ASSETS = [
   '/GiftICON/',
   '/GiftICON/index.html',
